@@ -18,8 +18,8 @@ app.use('/api/post', postRouter);
 app.use(error.errorHandling);
 app.use(error.notFoundPage);
 
-app.listen(process.env.PORT, () => {
-    console.log('Server listening port: ' + process.env.PORT);
+app.listen(process.env.PORT || 3000, () => {
+    console.log('Server listening port: ' + (process.env.PORT || 3000));
 });
 
 /*server.listen(3000, () => {
