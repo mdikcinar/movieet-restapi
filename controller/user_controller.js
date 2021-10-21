@@ -37,6 +37,7 @@ const getUserById = async (req, res, next) => {
 }
 
 const getCurrentUser = async (req, res, next) => {
+    console.log('Get current user worked')
     res.json(req.user);
 }
 
@@ -54,7 +55,7 @@ const getUserByEmail = async (req, res, next) => {
 }
 const updateUser = async (req, res, next) => {
     try {
-
+        console.log('Update user worked')
         const result = await User.findOneAndUpdate({ '_id': req.user._id }, {
             userName: req.body.userName,
             name: req.body.name,
@@ -346,7 +347,6 @@ const getMovieList = async (req, res, next) => {
 
 const watchlistQuery = async function (movieCollection, req) {
     if (req.params.date == '0') {
-        console.log('buraya girdi');
         return await movieCollection.aggregate([
             {
                 $match: { _id: req.params.id }

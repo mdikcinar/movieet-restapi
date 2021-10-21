@@ -14,19 +14,25 @@ const getFollowedPosts = async (req, res, next) => {
         console.log('Get followed posts');
         const followed = await Followings.findOne({ '_id': req.user._id });
         var result;
-        if (req.params.date == 0) {
-            result = await Post.find({ "owner": { $in: followed.list } }).sort({ 'createdAt': -1 })
-                .limit(Number(req.params.number));
+        if (followed) {
 
-        } else {
-            result = await Post.find({ "owner": { $in: followed.list } }).sort({ 'createdAt': -1 })
-                .limit(Number(req.params.number)).where('createdAt').lt(req.params.date);
+            if (req.params.date == 0) {
+                result = await Post.find({ "owner": { $in: followed.list } }).sort({ 'createdAt': -1 })
+                    .limit(Number(req.params.number));
+
+            } else {
+                result = await Post.find({ "owner": { $in: followed.list } }).sort({ 'createdAt': -1 })
+                    .limit(Number(req.params.number)).where('createdAt').lt(req.params.date);
+            }
+
+
         }
-
-
         if (result) {
             return res.status(200).json({ result: result });
+        } else {
+            return res.status(200).json({ result: [] });
         }
+
         throw createError(404, 'there is no post found');
     } catch (err) {
         next(err);
