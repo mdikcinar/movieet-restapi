@@ -54,7 +54,14 @@ const getUserByEmail = async (req, res, next) => {
 }
 const updateUser = async (req, res, next) => {
     try {
-        const result = await User.findOneAndUpdate({ '_id': req.user._id }, req.body, { new: true, runValidators: true })
+
+        const result = await User.findOneAndUpdate({ '_id': req.user._id }, {
+            userName: req.body.userName,
+            name: req.body.name,
+            description: req.body.description,
+            photoUrl: req.body.photoUrl,
+            bannerPhotoUrl: req.body.bannerPhotoUrl
+        }, { new: true, runValidators: true })
         //const result = await User.findByIdAndUpdate(req.user._id,req.body,{new:true,runValidators:true});
         if (result) {
             return res.status(200).json(result);

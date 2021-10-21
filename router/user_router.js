@@ -10,6 +10,7 @@ router.get('/', userController.getAllUsers);
 
 router.get('/me', authMiddleware, userController.getCurrentUser);
 router.patch('/me', authMiddleware, userController.updateUser);
+router.patch('/me', authMiddleware, userController.updateUser);
 router.patch('/me/subscriptions', authMiddleware, userController.updateSubscriptions);
 router.patch('/me/notification-token', authMiddleware, userController.updateNotificationToken);
 router.delete('/me', authMiddleware, userController.deleteUser);
