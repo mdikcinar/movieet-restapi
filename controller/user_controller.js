@@ -418,10 +418,8 @@ const addToList = async (req, res, next) => {
         const movieModel = {
             _id: req.body._id,
             moviePosterUrl: req.body.moviePosterUrl,
-            ownerRate: req.body.ownerRate
+            ownerRate: req.body.ownerRate,
         };
-
-        console.log(movieModel);
 
         if (isMovie == 'true') {
             if (isWatchList == 'true') response = await checkItemExistanceAndPush(user._id, WatchlistMovie, movieModel);
@@ -433,7 +431,14 @@ const addToList = async (req, res, next) => {
             else response = await checkItemExistanceAndPush(user._id, WatchedTv, movieModel);
         }
 
-        if (response == true) {
+        if (response == 'movie already exist') {
+            if (isWatchList == 'false') {
+                await deleteInWatchlist(req, isMovie, movieModel);
+                await user.save();
+            }
+            return res.json({ 'message': response });
+
+        } else {
             if (isWatchList == 'false') {
                 console.log('Watched countı arttır');
                 user.watchedMoviesCount++;
@@ -444,16 +449,9 @@ const addToList = async (req, res, next) => {
             }
             const result = await user.save();
 
-            if (result) return res.status(201).json({ 'message': true });
+            if (result) return res.status(201).json({ 'message': response });
             else return res.status(400).json({ 'message': false });
-        } else {
-            if (isWatchList == 'false') {
-                await deleteInWatchlist(req, isMovie, movieModel);
-                await user.save();
-            }
-            return res.json({ 'message': response });
         }
-
     } catch (err) {
         console.log('error add movie to lists:   ' + err);
         return res.status(500).json({ 'message': false });
@@ -543,18 +541,21 @@ const checkItemExistanceAndPush = async function (userid, movieCollection, movie
                 _id: userid,
             }
         );
+        var addedMovie;
         if (result) {
             result.movieList.push(movieModel);
+            addedMovie = result.movieList.at(-1);
             await result.save();
         } else {
             const tempMovie = new movieCollection({
                 _id: userid,
             });
             tempMovie.movieList.push(movieModel);
+            addedMovie = tempMovie.movieList.at(-1);
             await tempMovie.save();
         }
-        console.log('movie added to list');
-        return true;
+        console.log('movie added to list: ' + addedMovie);
+        return addedMovie.createdAt;
     } else {
         console.log('movie already exist');
         return 'movie already exist';
