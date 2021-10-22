@@ -544,7 +544,7 @@ const checkItemExistanceAndPush = async function (userid, movieCollection, movie
         var addedMovie;
         if (result) {
             result.movieList.push(movieModel);
-            addedMovie = result.movieList.at(-1);
+            addedMovie = result.movieList.at[result.movieList.length - 1];
             await result.save();
         } else {
             const tempMovie = new movieCollection({
