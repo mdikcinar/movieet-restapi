@@ -18,21 +18,26 @@ const userSchema = mongoose.Schema({
         maxLength: 30,
         minLength: 3,
         lowercase: true,
+        sparse: true
     },
     name: {
         type: String,
         maxLength: 30,
-        minLength: 3
+        minLength: 3,
+        sparse: true
     },
 
     description: {
         type: String,
+        sparse: true,
     },
     photoUrl: {
         type: String,
+        sparse: true
     },
     bannerPhotoUrl: {
         type: String,
+        sparse: true
     },
     notificationToken: {
         type: String,
