@@ -421,6 +421,8 @@ const addToList = async (req, res, next) => {
             ownerRate: req.body.ownerRate,
         };
 
+        console.log(movieModel);
+
         if (isMovie == 'true') {
             if (isWatchList == 'true') response = await checkItemExistanceAndPush(user._id, WatchlistMovie, movieModel);
             else response = await checkItemExistanceAndPush(user._id, WatchedMovie, movieModel);
@@ -438,7 +440,7 @@ const addToList = async (req, res, next) => {
             }
             return res.json({ 'message': response });
 
-        } else {
+        } else if (response != 'false') {
             if (isWatchList == 'false') {
                 console.log('Watched countı arttır');
                 user.watchedMoviesCount++;
@@ -451,6 +453,8 @@ const addToList = async (req, res, next) => {
 
             if (result) return res.status(201).json({ 'message': response });
             else return res.status(400).json({ 'message': false });
+        } else {
+            return res.status(400).json({ 'message': false });
         }
     } catch (err) {
         console.log('error add movie to lists:   ' + err);
@@ -544,7 +548,7 @@ const checkItemExistanceAndPush = async function (userid, movieCollection, movie
         var addedMovie;
         if (result) {
             result.movieList.push(movieModel);
-            addedMovie = result.movieList.at[result.movieList.length - 1];
+            addedMovie = result.movieList[result.movieList.length - 1];
             await result.save();
         } else {
             const tempMovie = new movieCollection({
@@ -554,12 +558,16 @@ const checkItemExistanceAndPush = async function (userid, movieCollection, movie
             addedMovie = tempMovie.movieList[tempMovie.movieList.length - 1];
             await tempMovie.save();
         }
-        console.log('movie added to list: ' + addedMovie);
-        return addedMovie.createdAt;
+        if (addedMovie) {
+            console.log('movie added to list: ' + addedMovie);
+            return addedMovie.createdAt;
+        }
+
     } else {
         console.log('movie already exist');
         return 'movie already exist';
     }
+    return 'false';
 }
 const checkItemExistanceAndPull = async function (userid, movieCollection, movieId) {
 
