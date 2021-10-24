@@ -278,10 +278,12 @@ const isFollowing = async (req, res, next) => {
             _id: req.user._id,
             list: { $elemMatch: { _id: req.params.id } },
         })
-        console.log('Is following: ' + result)
+
         if (result) {
+            console.log('Is following: true');
             return res.status(200).json(true);
         } else {
+            console.log('Is following: false');
             return res.status(200).json(false);
         }
     } catch (error) {
@@ -313,19 +315,19 @@ const getMovieList = async (req, res, next) => {
         console.log('isWatchlist:' + isWatchList);
         console.log('date:' + req.params.date);
         var result;
-        if (isMovie == 'true') {
-            if (isWatchList == 'true') {
+        if (isWatchList == 'true') {
+            if (isMovie == 'true') {
                 //result = await WatchlistMovie.findOne({ _id: userid }).select('movieList').sort({ 'createdAt': -1 }).limit(1);
                 result = await watchlistQuery(WatchlistMovie, req);
             }
             else {
                 //result = await WatchedMovie.findOne({ _id: userid }).select('movieList').sort({ 'createdAt': -1 }).limit(1);
-                result = await watchlistQuery(WatchedMovie, req);
+                result = await watchlistQuery(WatchlistTv, req);
             }
         } else {
-            if (isWatchList == 'true') {
+            if (isMovie == 'true') {
                 //result = await WatchlistTv.findOne({ _id: userid }).select('movieList').sort({ 'createdAt': -1 }).limit(1);
-                result = await watchlistQuery(WatchlistTv, req);
+                result = await watchlistQuery(WatchedMovie, req);
             }
             else {
                 //result = await WatchedTv.findOne({ _id: userid }).select('movieList').sort({ 'createdAt': -1 }).limit(1);
