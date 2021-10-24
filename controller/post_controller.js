@@ -1,11 +1,11 @@
 const Post = require('../model/post');
-const User = require('../model/user');
 const { WatchedMovie } = require('../model/watchedMovie');
 const { WatchedTv } = require('../model/watchedMovie');
 const { WatchlistMovie } = require('../model/watchedMovie');
 const { WatchlistTv } = require('../model/watchedMovie');
 const { Followings } = require('../model/followers');
 const createError = require('http-errors');
+var ObjectID = require('mongodb').ObjectID;
 
 
 
@@ -98,6 +98,7 @@ const getLimitedPostByUserId = async (req, res, next) => {
 const sendPost = async (req, res, next) => {
     try {
         const post = new Post(req.body);
+        post._id = new ObjectID();
         post.owner = req.user._id;
         const user = req.user;
         const result = await post.save();
