@@ -1,5 +1,11 @@
 const mongoose = require('mongoose');
 
+var validateUsername = function (userName) {
+    var re = /^[A-Za-z][A-Za-z0-9_]{3,18}$/;
+    return re.test(userName)
+};
+
+
 const userSchema = mongoose.Schema({
 
     _id: {
@@ -15,9 +21,10 @@ const userSchema = mongoose.Schema({
         type: String,
         trim: true,
         unique: [true, 'This username is already exist'],
-        maxLength: 30,
+        maxLength: 18,
         minLength: 3,
         lowercase: true,
+        validate: [validateUsername, 'This username is not valid'],
         sparse: true
     },
     name: {
@@ -74,11 +81,17 @@ const userSchema = mongoose.Schema({
     isPatron: {
         type: Boolean,
         default: false
-    }
-
+    },
+    role: {
+        type: String,
+        sparse: true
+    },
+    blocked: [String]
 }, {
     timestamps: true,
 });
+
+
 
 const User = mongoose.model('user', userSchema);
 

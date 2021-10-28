@@ -1,6 +1,6 @@
 const errorHandling = ((err, req, res, next) => {
     //console.log('Error handling inside');
-    console.log(err);
+    console.log('hata:' + err);
     if (err.code == 'auth/id-token-expired') {
         console.log('Firebase token experied.')
         return res.status(401);

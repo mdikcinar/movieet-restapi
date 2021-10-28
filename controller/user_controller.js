@@ -227,38 +227,7 @@ const unfollowUser = async (req, res, next) => {
 
     try {
         if (req.user._id == req.params.id) return res.status(200).json({ message: 'You can not unfollow yourself' });
-
-        const currentUserslist = await Followings.findByIdAndUpdate(
-            req.user._id,
-            {
-                $pull: { list: { _id: req.params.id } },
-            },
-            { safe: true, upsert: true });
-        if (currentUserslist) {
-            console.log('Currentuser list: ' + currentUserslist);
-            req.user.followingCount--;
-            await req.user.save();
-            //await currentUserslist.save();
-        }
-        const targetUserslist = await Followers.findByIdAndUpdate(
-            req.params.id,
-            {
-                $pull: { list: { _id: req.user._id } },
-            },
-            { safe: true, upsert: true });
-
-        if (targetUserslist) {
-            const targetUser = await User.findOne(
-                {
-                    _id: req.params.id,
-                }
-            );
-            console.log('TargetUserslist list: ' + targetUserslist);
-            targetUser.followersCount--;
-            await targetUser.save();
-            //await targetUserslist.save();
-        }
-
+        await unfollowUserMethod(req);
         console.log('Follow counts changed.');
         res.status(201).json({ 'message': true });
 
@@ -269,6 +238,41 @@ const unfollowUser = async (req, res, next) => {
     }
 
 }
+
+const unfollowUserMethod = async (req) => {
+
+    const currentUserslist = await Followings.findByIdAndUpdate(
+        req.user._id,
+        {
+            $pull: { list: { _id: req.params.id } },
+        },
+        { safe: true, upsert: true });
+    if (currentUserslist) {
+        console.log('Currentuser list: ' + currentUserslist);
+        req.user.followingCount--;
+        await req.user.save();
+        //await currentUserslist.save();
+    }
+    const targetUserslist = await Followers.findByIdAndUpdate(
+        req.params.id,
+        {
+            $pull: { list: { _id: req.user._id } },
+        },
+        { safe: true, upsert: true });
+
+    if (targetUserslist) {
+        const targetUser = await User.findOne(
+            {
+                _id: req.params.id,
+            }
+        );
+        console.log('TargetUserslist list: ' + targetUserslist);
+        targetUser.followersCount--;
+        await targetUser.save();
+        //await targetUserslist.save();
+    }
+}
+
 const isFollowing = async (req, res, next) => {
 
     try {
@@ -291,6 +295,35 @@ const isFollowing = async (req, res, next) => {
     }
 
 }
+
+const blockUser = async (req, res, next) => {
+    try {
+        console.log('Block user method called');
+        const blockedList = req.user.blocked;
+        if (blockedList.includes(req.params.id)) {
+            blockedList.remove(req.params.id);
+            req.user.save();
+            console.log('user unblocked: ' + req.params.id);
+            return res.status(200).json({ message: 'unblocked' });
+        } else {
+            blockedList.push(req.params.id);
+            console.log('user blocked: ' + req.params.id);
+            const exist = await Followings.findOne({
+                _id: req.user._id,
+                list: { $elemMatch: { _id: req.params.id } },
+            })
+            if (exist) {
+                await unfollowUserMethod(req);
+            } else {
+                req.user.save();
+            }
+            return res.status(200).json({ message: 'blocked' });
+        }
+    } catch (err) {
+        next(err);
+    }
+}
+
 const searchUser = async (req, res, next) => {
     try {
         let colName = req.params.str;
@@ -605,6 +638,7 @@ module.exports = {
     deleteUser,
     followUser,
     unfollowUser,
+    blockUser,
     addToList,
     deleteFromList,
     getMovieList,

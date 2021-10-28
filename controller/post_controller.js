@@ -4,8 +4,9 @@ const { WatchedTv } = require('../model/watchedMovie');
 const { WatchlistMovie } = require('../model/watchedMovie');
 const { WatchlistTv } = require('../model/watchedMovie');
 const { Followings } = require('../model/followers');
+const ReportedPosts = require('../model/reportedPost');
 const createError = require('http-errors');
-var ObjectID = require('mongodb').ObjectID;
+var ObjectID = require('mongodb').ObjectId;
 
 
 
@@ -197,20 +198,58 @@ const deletePost = async (req, res, next) => {
     }
 
 };
+const reportPost = async (req, res, next) => {
+    try {
+        console.log('Report post method called');
+        const report = new ReportedPosts(
+            {
+                reporter: req.user._id,
+                postId: req.params.postId,
+                cause: req.params.cause,
+            }
+        );
+        const result = await report.save();
+        if (result) {
+            return res.status(200).json(true)
+        } else {
+            return res.status(200).json(false);
+        }
+
+    } catch (err) {
+        next(err);
+    }
+
+};
+
 
 const getAllPostsWithLimit = async (req, res, next) => {
     try {
         console.log('get all posts with limit date: ' + req.params.date);
-        var result;
-        if (req.params.date == 0) {
-            result = await Post.find({ published: true }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+        var user = req.user;
+        if (user && user.blocked) {
+            var result;
+            if (req.params.date == 0) {
+                result = await Post.find({ "owner": { $nin: user.blocked } }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+            } else {
+                result = await Post.find({ "owner": { $nin: user.blocked } }).sort({ 'createdAt': -1 }).where('createdAt').lt(req.params.date).limit(Number(req.params.number));
+            }
+            if (result) {
+                return res.status(200).json({ result: result });
+            }
+            throw createError(404, 'there is no post found');
         } else {
-            result = await Post.find({ published: true }).sort({ 'createdAt': -1 }).where('createdAt').lt(req.params.date).limit(Number(req.params.number));
+            var result;
+            if (req.params.date == 0) {
+                result = await Post.find({ published: true }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+            } else {
+                result = await Post.find({ published: true }).sort({ 'createdAt': -1 }).where('createdAt').lt(req.params.date).limit(Number(req.params.number));
+            }
+            if (result) {
+                return res.status(200).json({ result: result });
+            }
+            throw createError(404, 'there is no post found');
         }
-        if (result) {
-            return res.status(200).json({ result: result });
-        }
-        throw createError(404, 'there is no post found');
+
     } catch (err) {
         next(err);
     }
@@ -219,16 +258,32 @@ const getAllPostsWithLimit = async (req, res, next) => {
 const getNewAllPostsWithLimit = async (req, res, next) => {
     try {
         console.log('get new all posts with limit date: ' + req.params.date);
-        var result;
-        if (req.params.date == 0) {
-            result = await Post.find({ published: true }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+        var user = req.user;
+        if (user && user.blocked) {
+            var result;
+            if (req.params.date == 0) {
+                result = await Post.find({ "owner": { $nin: user.blocked } }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+            } else {
+                result = await Post.find({ "owner": { $nin: user.blocked } }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.date).limit(Number(req.params.number));
+            }
+            if (result) {
+                return res.status(200).json({ result: result });
+            }
+            throw createError(404, 'there is no post found');
         } else {
-            result = await Post.find({ published: true }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.date).limit(Number(req.params.number));
+            var result;
+            if (req.params.date == 0) {
+                result = await Post.find({ published: true }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+            } else {
+                result = await Post.find({ published: true }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.date).limit(Number(req.params.number));
+            }
+            if (result) {
+                return res.status(200).json({ result: result });
+            }
+            throw createError(404, 'there is no post found');
         }
-        if (result) {
-            return res.status(200).json({ result: result });
-        }
-        throw createError(404, 'there is no post found');
+
+
     } catch (err) {
         next(err);
     }
@@ -237,11 +292,21 @@ const getNewAllPostsWithLimit = async (req, res, next) => {
 const showMoreAllPostsWithLimit = async (req, res, next) => {
     try {
         console.log('Show more all posts with limit date: ' + req.params.topdate + ' ' + req.params.bottomdate);
-        var result = await Post.find({ published: true }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.bottomdate).lt(req.params.topdate).limit(Number(req.params.number));
-        if (result) {
-            return res.status(200).json({ result: result });
+        var user = req.user;
+        if (user && user.blocked) {
+            var result = await Post.find({ "owner": { $nin: user.blocked } }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.bottomdate).lt(req.params.topdate).limit(Number(req.params.number));
+            if (result) {
+                return res.status(200).json({ result: result });
+            }
+            throw createError(404, 'there is no post found');
+        } else {
+            var result = await Post.find({ published: true }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.bottomdate).lt(req.params.topdate).limit(Number(req.params.number));
+            if (result) {
+                return res.status(200).json({ result: result });
+            }
+            throw createError(404, 'there is no post found');
         }
-        throw createError(404, 'there is no post found');
+
     } catch (err) {
         next(err);
     }
@@ -268,6 +333,7 @@ const getAllPostsByUserId = async (req, res, next) => {
 module.exports = {
     sendPost,
     deletePost,
+    reportPost,
     getFollowedPosts,
     getNewFollowedPosts,
     showMoreFollowedPosts,

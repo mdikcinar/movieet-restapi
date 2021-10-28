@@ -24,6 +24,9 @@ router.get('/byid/:id', userController.getUserById);
 router.get('/isFollowing/:id', authMiddleware, userController.isFollowing);
 router.post('/follow/:id', authMiddleware, userController.followUser);
 router.post('/unfollow/:id', authMiddleware, userController.unfollowUser);
+//Block && Report
+router.post('/block/:id', authMiddleware, userController.blockUser);
+//router.post('/report/:id', userController.reportUser);
 
 //get users movie list with id
 router.get('/movielist/:id/:isMovie/:isWatchList/:date/:number', userController.getMovieList);
