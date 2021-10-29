@@ -3,11 +3,12 @@ const Schema = mongoose.Schema;
 
 const ReportedUserSchema = new Schema({
     userId: {
-        type: Schema.ObjectId,
+        type: String,
         ref: 'User',
     },
     reporter: {
         type: String,
+        ref: 'User',
     },
     cause: {
         type: Number,
@@ -18,5 +19,5 @@ const ReportedUserSchema = new Schema({
     }
 });
 
-const reportedUserModel = mongoose.model('reportedUser', ReportedUserSchema);
-module.exports = reportedUserModel;
+const RepoertedUsers = mongoose.model('reportedUser', ReportedUserSchema);
+module.exports = RepoertedUsers;

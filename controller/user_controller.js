@@ -7,6 +7,7 @@ const { WatchlistTv } = require('../model/watchedMovie');
 const { WatchlistMovie } = require('../model/watchedMovie');
 const { Followers } = require('../model/followers');
 const { Followings } = require('../model/followers');
+const ReportedUsers = require('../model/reportedUser');
 var FCM = require('fcm-node');
 require('dotenv').config();
 
@@ -74,6 +75,41 @@ const updateUser = async (req, res, next) => {
     }
 
 }
+
+const reportUser = async (req, res, next) => {
+    try {
+        console.log('Report user method called');
+        var report;
+        if (req.user) {
+            report = new ReportedUsers(
+                {
+                    reporter: req.user._id,
+                    userId: req.params.userId,
+                    cause: req.params.cause,
+                }
+            );
+        } else {
+            report = new ReportedUsers(
+                {
+                    userId: req.params.userId,
+                    cause: req.params.cause,
+                }
+            );
+        }
+
+        const result = await report.save();
+        if (result) {
+            return res.status(200).json(true)
+        } else {
+            return res.status(200).json(false);
+        }
+
+    } catch (err) {
+        next(err);
+    }
+
+};
+
 const updateSubscriptions = async (req, res, next) => {
     try {
         const isSubscribed = req.body.isSubscribed;
@@ -632,6 +668,7 @@ module.exports = {
     getUserById,
     getUserByEmail,
     updateUser,
+    reportUser,
     updateSubscriptions,
     updateNotificationToken,
     getCurrentUser,

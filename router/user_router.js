@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const userController = require('../controller/user_controller');
 const authMiddleware = require('../middleware/auth_middleware');
+const getPostMiddleware = require('../middleware/get_post_middleware');
+
 
 ///Kullanıcılar için REST işlemleri. (listAll, listOneById, Update, Delete, append)
 //createErrorda sadece message alanına erişebiliyorum. Status code vs erişilmiyor.
@@ -26,7 +28,8 @@ router.post('/follow/:id', authMiddleware, userController.followUser);
 router.post('/unfollow/:id', authMiddleware, userController.unfollowUser);
 //Block && Report
 router.post('/block/:id', authMiddleware, userController.blockUser);
-//router.post('/report/:id', userController.reportUser);
+router.post('/report/:userId/:cause', getPostMiddleware, userController.reportUser);
+
 
 //get users movie list with id
 router.get('/movielist/:id/:isMovie/:isWatchList/:date/:number', userController.getMovieList);

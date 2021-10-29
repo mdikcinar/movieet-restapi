@@ -201,13 +201,24 @@ const deletePost = async (req, res, next) => {
 const reportPost = async (req, res, next) => {
     try {
         console.log('Report post method called');
-        const report = new ReportedPosts(
-            {
-                reporter: req.user._id,
-                postId: req.params.postId,
-                cause: req.params.cause,
-            }
-        );
+        var report;
+        if (req.user) {
+            report = new ReportedPosts(
+                {
+                    reporter: req.user._id,
+                    postId: req.params.postId,
+                    cause: req.params.cause,
+                }
+            );
+        } else {
+            report = new ReportedPosts(
+                {
+                    postId: req.params.postId,
+                    cause: req.params.cause,
+                }
+            );
+        }
+
         const result = await report.save();
         if (result) {
             return res.status(200).json(true)
