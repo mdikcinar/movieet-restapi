@@ -86,7 +86,8 @@ const userSchema = mongoose.Schema({
         type: String,
         sparse: true
     },
-    blocked: [String]
+    blocked: [String],
+    hiddenPosts: [mongoose.Schema.ObjectId]
 }, {
     timestamps: true,
 });

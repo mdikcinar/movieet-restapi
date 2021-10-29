@@ -109,6 +109,27 @@ const reportUser = async (req, res, next) => {
     }
 
 };
+const hidePost = async (req, res, next) => {
+    try {
+        console.log('Hide post method called');
+        const hiddenPosts = req.user.hiddenPosts;
+        if (hiddenPosts.includes(req.params.postId)) {
+            hiddenPosts.remove(req.params.postId);
+            req.user.save();
+            console.log('Post removed from hidden list: ' + req.params.postId);
+            return res.status(200).json({ message: 'removed' });
+        } else {
+            hiddenPosts.push(req.params.postId);
+            console.log('Post added to hidden list: ' + req.params.postId);
+            req.user.save();
+            return res.status(200).json({ message: 'added' });
+        }
+    } catch (err) {
+        next(err);
+    }
+
+};
+
 
 const updateSubscriptions = async (req, res, next) => {
     try {
@@ -669,6 +690,7 @@ module.exports = {
     getUserByEmail,
     updateUser,
     reportUser,
+    hidePost,
     updateSubscriptions,
     updateNotificationToken,
     getCurrentUser,

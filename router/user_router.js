@@ -29,6 +29,7 @@ router.post('/unfollow/:id', authMiddleware, userController.unfollowUser);
 //Block && Report
 router.post('/block/:id', authMiddleware, userController.blockUser);
 router.post('/report/:userId/:cause', getPostMiddleware, userController.reportUser);
+router.post('/hide-post/:postId', authMiddleware, userController.hidePost);
 
 
 //get users movie list with id

@@ -15,14 +15,21 @@ const getFollowedPosts = async (req, res, next) => {
         console.log('Get followed posts');
         const followed = await Followings.findOne({ '_id': req.user._id });
         var result;
+        var user = req.user;
         if (followed) {
 
             if (req.params.date == 0) {
-                result = await Post.find({ "owner": { $in: followed.list } }).sort({ 'createdAt': -1 })
+                result = await Post.find({
+                    "_id": { $nin: user.hiddenPosts },
+                    "owner": { $in: followed.list }
+                }).sort({ 'createdAt': -1 })
                     .limit(Number(req.params.number));
 
             } else {
-                result = await Post.find({ "owner": { $in: followed.list } }).sort({ 'createdAt': -1 })
+                result = await Post.find({
+                    "_id": { $nin: user.hiddenPosts },
+                    "owner": { $in: followed.list }
+                }).sort({ 'createdAt': -1 })
                     .limit(Number(req.params.number)).where('createdAt').lt(req.params.date);
             }
 
@@ -44,12 +51,19 @@ const getNewFollowedPosts = async (req, res, next) => {
         console.log('Get new followed posts');
         const followed = await Followings.findOne({ '_id': req.user._id });
         var result;
+        var user = req.user;
         if (req.params.date == 0) {
-            result = await Post.find({ "owner": { $in: followed.list } }).sort({ 'createdAt': -1 })
+            result = await Post.find({
+                "_id": { $nin: user.hiddenPosts },
+                "owner": { $in: followed.list }
+            }).sort({ 'createdAt': -1 })
                 .limit(Number(req.params.number));
 
         } else {
-            result = await Post.find({ "owner": { $in: followed.list } }).sort({ 'createdAt': -1 })
+            result = await Post.find({
+                "_id": { $nin: user.hiddenPosts },
+                "owner": { $in: followed.list }
+            }).sort({ 'createdAt': -1 })
                 .limit(Number(req.params.number)).where('createdAt').gt(req.params.date);
         }
 
@@ -66,7 +80,11 @@ const showMoreFollowedPosts = async (req, res, next) => {
     try {
         console.log('Show more followed posts ' + req.params.topdate + ' ' + req.params.bottomdate);
         const followed = await Followings.findOne({ '_id': req.user._id });
-        var result = await Post.find({ "owner": { $in: followed.list } }).sort({ 'createdAt': -1 })
+        var user = req.user;
+        var result = await Post.find({
+            "_id": { $nin: user.hiddenPosts },
+            "owner": { $in: followed.list }
+        }).sort({ 'createdAt': -1 })
             .limit(Number(req.params.number)).where('createdAt').gt(req.params.bottomdate).lt(req.params.topdate);
 
         if (result) {
@@ -81,12 +99,28 @@ const showMoreFollowedPosts = async (req, res, next) => {
 const getLimitedPostByUserId = async (req, res, next) => {
     try {
         console.log('Get limited posts by user id: ' + req.params.userId);
+        var user = req.user;
         var result;
-        if (req.params.date == 0) {
-            result = await Post.find({ "owner": req.params.userId }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+        if (user) {
+            if (req.params.date == 0) {
+                result = await Post.find({
+                    "_id": { $nin: user.hiddenPosts },
+                    "owner": req.params.userId
+                }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+            } else {
+                result = await Post.find({
+                    "_id": { $nin: user.hiddenPosts },
+                    "owner": req.params.userId
+                }).sort({ 'createdAt': -1 }).where('createdAt').lt(req.params.date).limit(Number(req.params.number));
+            }
         } else {
-            result = await Post.find({ "owner": req.params.userId }).sort({ 'createdAt': -1 }).where('createdAt').lt(req.params.date).limit(Number(req.params.number));
+            if (req.params.date == 0) {
+                result = await Post.find({ "owner": req.params.userId }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+            } else {
+                result = await Post.find({ "owner": req.params.userId }).sort({ 'createdAt': -1 }).where('createdAt').lt(req.params.date).limit(Number(req.params.number));
+            }
         }
+
         if (result) {
             return res.status(200).json({ result: result });
         }
@@ -232,17 +266,22 @@ const reportPost = async (req, res, next) => {
 
 };
 
-
 const getAllPostsWithLimit = async (req, res, next) => {
     try {
         console.log('get all posts with limit date: ' + req.params.date);
         var user = req.user;
-        if (user && user.blocked) {
+        if (user) {
             var result;
             if (req.params.date == 0) {
-                result = await Post.find({ "owner": { $nin: user.blocked } }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+                result = await Post.find({
+                    "_id": { $nin: user.hiddenPosts },
+                    "owner": { $nin: user.blocked }
+                }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
             } else {
-                result = await Post.find({ "owner": { $nin: user.blocked } }).sort({ 'createdAt': -1 }).where('createdAt').lt(req.params.date).limit(Number(req.params.number));
+                result = await Post.find({
+                    "_id": { $nin: user.hiddenPosts },
+                    "owner": { $nin: user.blocked }
+                }).sort({ 'createdAt': -1 }).where('createdAt').lt(req.params.date).limit(Number(req.params.number));
             }
             if (result) {
                 return res.status(200).json({ result: result });
@@ -270,12 +309,18 @@ const getNewAllPostsWithLimit = async (req, res, next) => {
     try {
         console.log('get new all posts with limit date: ' + req.params.date);
         var user = req.user;
-        if (user && user.blocked) {
+        if (user) {
             var result;
             if (req.params.date == 0) {
-                result = await Post.find({ "owner": { $nin: user.blocked } }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+                result = await Post.find({
+                    "_id": { $nin: user.hiddenPosts },
+                    "owner": { $nin: user.blocked }
+                }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
             } else {
-                result = await Post.find({ "owner": { $nin: user.blocked } }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.date).limit(Number(req.params.number));
+                result = await Post.find({
+                    "_id": { $nin: user.hiddenPosts },
+                    "owner": { $nin: user.blocked }
+                }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.date).limit(Number(req.params.number));
             }
             if (result) {
                 return res.status(200).json({ result: result });
@@ -304,8 +349,11 @@ const showMoreAllPostsWithLimit = async (req, res, next) => {
     try {
         console.log('Show more all posts with limit date: ' + req.params.topdate + ' ' + req.params.bottomdate);
         var user = req.user;
-        if (user && user.blocked) {
-            var result = await Post.find({ "owner": { $nin: user.blocked } }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.bottomdate).lt(req.params.topdate).limit(Number(req.params.number));
+        if (user) {
+            var result = await Post.find({
+                "_id": { $nin: user.hiddenPosts },
+                "owner": { $nin: user.blocked }
+            }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.bottomdate).lt(req.params.topdate).limit(Number(req.params.number));
             if (result) {
                 return res.status(200).json({ result: result });
             }
