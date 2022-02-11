@@ -40,5 +40,6 @@ router.delete('/deleteFromList/:isMovie/:isWatchList', authMiddleware, userContr
 
 //find a user
 router.get('/search/:str', authMiddleware, userController.searchUser);
+router.get('/notifications/:date/:number', authMiddleware, userController.getNotifications);
 
 module.exports = router;

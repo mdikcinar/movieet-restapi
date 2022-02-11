@@ -22,6 +22,7 @@ const MovieSchema = new Schema({
 const watchedMovieSchema = new Schema({
     _id: {
         type: String,
+        ref: 'User',
     },
     movieList: [
         MovieSchema

@@ -28,9 +28,19 @@ const postSchema = mongoose.Schema({
     movieMediaType: {
         type: String
     },
-    owner: {
-        type: String,
-    }
+    likeCount: {
+        type: Number,
+        default: 0
+    },
+    commentCount: {
+        type: Number,
+        default: 0
+    },
+    isUserLiked: {
+        type: Boolean,
+        default: false
+    },
+    owner: { type: String, ref: 'User' },
 
 }, { timestamps: true });
 

@@ -8,6 +8,7 @@ const ReportedPostSchema = new Schema({
     },
     reporter: {
         type: String,
+        ref: 'User',
     },
     cause: {
         type: Number,

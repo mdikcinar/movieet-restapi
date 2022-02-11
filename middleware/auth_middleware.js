@@ -1,4 +1,5 @@
 const User = require('../model/user');
+const { Followings } = require('../model/followers');
 const createError = require('http-errors');
 const admin = require('../config/firebase_config');
 require('dotenv').config();
@@ -25,6 +26,15 @@ const authCheck = async (req, res, next) => {
                     });
                     console.log('New user created: ' + newUser._id);
                     await newUser.save();
+                    const following = new Followings({
+                        '_id': decodeValue.uid, list: [
+                            {
+                                _id: decodeValue.uid,
+
+                            }
+                        ]
+                    });
+                    await following.save();
                     req.user = newUser;
                 }
                 return next();

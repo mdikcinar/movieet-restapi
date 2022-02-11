@@ -5,6 +5,11 @@ const { WatchlistMovie } = require('../model/watchedMovie');
 const { WatchlistTv } = require('../model/watchedMovie');
 const { Followings } = require('../model/followers');
 const ReportedPosts = require('../model/reportedPost');
+const User = require('../model/user');
+var FCM = require('fcm-node');
+const Like = require('../model/like');
+const Comment = require('../model/comment');
+const Notification = require('../model/notification');
 const createError = require('http-errors');
 var ObjectID = require('mongodb').ObjectId;
 
@@ -36,12 +41,11 @@ const getFollowedPosts = async (req, res, next) => {
 
         }
         if (result) {
+            result = await fillIsUserLiked(req, result);
             return res.status(200).json({ result: result });
         } else {
             return res.status(200).json({ result: [] });
         }
-
-        throw createError(404, 'there is no post found');
     } catch (err) {
         next(err);
     }
@@ -69,6 +73,7 @@ const getNewFollowedPosts = async (req, res, next) => {
 
 
         if (result) {
+            result = await fillIsUserLiked(req, result);
             return res.status(200).json({ result: result });
         }
         throw createError(404, 'there is no post found');
@@ -88,6 +93,7 @@ const showMoreFollowedPosts = async (req, res, next) => {
             .limit(Number(req.params.number)).where('createdAt').gt(req.params.bottomdate).lt(req.params.topdate);
 
         if (result) {
+            result = await fillIsUserLiked(req, result);
             return res.status(200).json({ result: result });
         }
         throw createError(404, 'there is no show more post found');
@@ -122,6 +128,7 @@ const getLimitedPostByUserId = async (req, res, next) => {
         }
 
         if (result) {
+            result = await fillIsUserLiked(req, result);
             return res.status(200).json({ result: result });
         }
         throw createError(404, 'there is no post found for user id: ' + req.params.userId);
@@ -218,6 +225,14 @@ const deletePost = async (req, res, next) => {
                 await result.deleteOne();
                 user.postCount--;
                 await user.save();
+                await Comment.deleteMany({ postID: deletePostID });
+                await Like.findOneAndDelete({ _id: deletePostID });
+                await ReportedPosts.findOneAndDelete({ postId: deletePostID });
+                await Notification.deleteMany({ postID: deletePostID }).then(function () {
+                    console.log("Notifications deleted"); // Success
+                }).catch(function (error) {
+                    console.log(error); // Failure
+                });
                 console.log('Post is deleted: ' + req.params.postID)
                 return res.status(200).json({ 'message': 'true' });
             } else {
@@ -266,6 +281,180 @@ const reportPost = async (req, res, next) => {
 
 };
 
+const likePost = async (req, res, next) => {
+    try {
+        var postID = req.body['postID'];
+        const exist = await Like.findOne({
+            _id: postID,
+            list: { $elemMatch: { _id: req.user._id } },
+        });
+        const post = await Post.findOne({
+            _id: postID,
+        });
+        if (post) {
+            if (exist) {
+                exist.list.remove(req.user._id);
+                await exist.save();
+                post.likeCount--;
+                await post.save();
+                return res.status(200).json({ 'likeCount': post.likeCount, 'isUserLiked': false });
+            }
+            else {
+                const postLikes = await Like.findOne({
+                    _id: postID,
+                });
+                if (postLikes) {
+                    postLikes.list.push({ _id: req.user._id });
+                    await postLikes.save();
+                } else {
+                    const like = new Like();
+                    like._id = postID;
+                    like.list.push({ _id: req.user._id });
+                    await like.save();
+                }
+                post.likeCount++;
+                await post.save();
+                const targetUser = await User.findOne({ _id: post.owner });
+                const targetNotificationToken = targetUser.notificationToken;
+                if (targetNotificationToken) {
+                    sendLikeNotification(targetNotificationToken, req.user.userName,);
+                }
+                await createNotification(targetUser._id, req.user._id, req.user.userName, 'like', post._id);
+                return res.status(200).json({ 'likeCount': post.likeCount, 'isUserLiked': true });
+            }
+        }
+        else {
+            return res.status(200).json('post not exist');
+        }
+
+    } catch (err) {
+        next(err);
+    }
+};
+
+const createNotification = async (receiver, sender, senderUsername, type, postID) => {
+    const notification = new Notification();
+    notification.receiver = receiver;
+    notification.sender = sender;
+    notification.senderUsername = senderUsername;
+    notification.type = type;
+    notification.postID = postID;
+    await notification.save();
+};
+const addComment = async (req, res, next) => {
+    console.log('add comment worked');
+    try {
+        const postID = req.body['postID'];
+        if (postID) {
+            console.log(postID)
+            const post = await Post.findOne({ _id: ObjectID(postID) });
+            if (post) {
+                post.commentCount++;
+                await post.save();
+                const comment = new Comment(req.body);
+                comment._id = new ObjectID();
+                comment.owner = req.user._id;
+                const result = await comment.save();
+                const targetUser = await User.findOne({ _id: post.owner });
+                const targetNotificationToken = targetUser.notificationToken;
+                sendCommentNotification(targetNotificationToken, req.user.userName, comment.commentTxt);
+                await createNotification(targetUser._id, req.user._id, req.user.userName, 'comment', post._id);
+                if (result) {
+                    return res.status(200).json(comment._id);
+                }
+            } else {
+                return res.status(200).json('post not exist');
+            }
+
+        }
+
+
+    } catch (err) {
+        next(err);
+    }
+};
+
+const deleteComment = async (req, res, next) => {
+
+    try {
+        const commentID = req.params.commentID;
+        if (commentID) {
+            const comment = await Comment.findOne({ _id: ObjectID(commentID) });
+            if (comment) {
+                const post = await Post.findOne({ _id: ObjectID(comment.postID) });
+                if (post) {
+                    post.commentCount--;
+                    await post.save();
+                }
+                const result = await comment.deleteOne();
+                if (result) {
+                    return res.status(200).json(true);
+                }
+            }
+
+        }
+    } catch (err) {
+        next(err);
+    }
+};
+
+
+const fillIsUserLiked = async (req, postList) => {
+    console.log('fill user liked worked');
+    for (var i in postList) {
+        const like = await Like.findOne({ _id: postList[i]._id, list: { $elemMatch: { _id: req.user._id } }, });
+        if (like) {
+            postList[i].isUserLiked = true;
+        } else {
+            postList[i].isUserLiked = false;
+        }
+    }
+    return postList;
+};
+
+const sendLikeNotification = async (targetNotificationToken, likedUserName) => {
+    console.log('Send notification worked');
+    var serverKey = process.env.notification_server_key; //put your server key here
+    var fcm = new FCM(serverKey);
+
+    var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+        to: targetNotificationToken,
+        notification: {
+            title: 'New like',
+            body: likedUserName + ' is liked your post.'
+        },
+    };
+
+    fcm.send(message, function (err, response) {
+        if (err) {
+            console.log("Send notification: Something has gone wrong!");
+        } else {
+            console.log("Notification successfully sent with response: ", response);
+        }
+    });
+}
+const sendCommentNotification = async (targetNotificationToken, commendedUserName, comment) => {
+    console.log('Send notification worked');
+    var serverKey = process.env.notification_server_key; //put your server key here
+    var fcm = new FCM(serverKey);
+
+    var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+        to: targetNotificationToken,
+        notification: {
+            title: 'A new comment',
+            body: commendedUserName + ': ' + comment,
+        },
+    };
+
+    fcm.send(message, function (err, response) {
+        if (err) {
+            console.log("Send notification: Something has gone wrong!");
+        } else {
+            console.log("Notification successfully sent with response: ", response);
+        }
+    });
+}
+
 const getAllPostsWithLimit = async (req, res, next) => {
     try {
         console.log('get all posts with limit date: ' + req.params.date);
@@ -284,6 +473,7 @@ const getAllPostsWithLimit = async (req, res, next) => {
                 }).sort({ 'createdAt': -1 }).where('createdAt').lt(req.params.date).limit(Number(req.params.number));
             }
             if (result) {
+                result = await fillIsUserLiked(req, result);
                 return res.status(200).json({ result: result });
             }
             throw createError(404, 'there is no post found');
@@ -323,6 +513,7 @@ const getNewAllPostsWithLimit = async (req, res, next) => {
                 }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.date).limit(Number(req.params.number));
             }
             if (result) {
+                result = await fillIsUserLiked(req, result);
                 return res.status(200).json({ result: result });
             }
             throw createError(404, 'there is no post found');
@@ -334,6 +525,7 @@ const getNewAllPostsWithLimit = async (req, res, next) => {
                 result = await Post.find({ published: true }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.date).limit(Number(req.params.number));
             }
             if (result) {
+                result = await fillIsUserLiked(req, result);
                 return res.status(200).json({ result: result });
             }
             throw createError(404, 'there is no post found');
@@ -361,6 +553,7 @@ const showMoreAllPostsWithLimit = async (req, res, next) => {
         } else {
             var result = await Post.find({ published: true }).sort({ 'createdAt': -1 }).where('createdAt').gt(req.params.bottomdate).lt(req.params.topdate).limit(Number(req.params.number));
             if (result) {
+                result = await fillIsUserLiked(req, result);
                 return res.status(200).json({ result: result });
             }
             throw createError(404, 'there is no post found');
@@ -372,23 +565,31 @@ const showMoreAllPostsWithLimit = async (req, res, next) => {
 
 }
 
-const getAllPostsByUserId = async (req, res, next) => {
+const getComments = async (req, res, next) => {
     try {
+        console.log('Get limited comments post id: ' + req.params.postID);
 
-        const result = await Post.find({ "owner": req.params.userID }).limit(Number(req.params.number)).sort({ 'createdAt': -1 })
-            .where('createdAt').lt(req.params.date);
+        var result;
+        if (req.params.date == 0) {
+            result = await Comment.find({
+                "postID": req.params.postID,
+            }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+        } else {
+            result = await Comment.find({
+                "postID": req.params.postID,
+            }).sort({ 'createdAt': -1 }).where('createdAt').lt(req.params.date).limit(Number(req.params.number));
+        }
 
 
         if (result) {
-            const lastDate = result[(result.length) - 1].createdAt;
-            return res.status(200).json({ result: result, sonGetirilenPostTarihi: lastDate });
+            return res.status(200).json({ result: result });
         }
-        throw createError(404, 'there is no post found for user id: ' + req.params.userID);
+        throw createError(404, 'there is no post found for user id: ' + req.params.userId);
     } catch (err) {
         next(err);
     }
+};
 
-}
 module.exports = {
     sendPost,
     deletePost,
@@ -396,9 +597,12 @@ module.exports = {
     getFollowedPosts,
     getNewFollowedPosts,
     showMoreFollowedPosts,
-    getAllPostsByUserId,
     getLimitedPostByUserId,
     getAllPostsWithLimit,
     getNewAllPostsWithLimit,
-    showMoreAllPostsWithLimit
+    showMoreAllPostsWithLimit,
+    likePost,
+    addComment,
+    deleteComment,
+    getComments
 }

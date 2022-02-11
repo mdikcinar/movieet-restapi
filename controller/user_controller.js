@@ -8,6 +8,9 @@ const { WatchlistMovie } = require('../model/watchedMovie');
 const { Followers } = require('../model/followers');
 const { Followings } = require('../model/followers');
 const ReportedUsers = require('../model/reportedUser');
+const Comment = require('../model/comment');
+const Post = require('../model/post');
+const Notification = require('../model/notification');
 var FCM = require('fcm-node');
 require('dotenv').config();
 
@@ -173,12 +176,108 @@ const updateNotificationToken = async (req, res, next) => {
 
 const deleteUser = async (req, res, next) => {
     try {
-        const result = await User.findOneAndRemove(req.user.userID);
+        const result = await User.findOneAndRemove({ _id: req.user._id });
         if (result) {
-            return res.status(200).json(result);
+            const followings = await Followings.findOne({
+                _id: req.user._id,
+            });
+            if (followings) {
+                for (var i in followings.list) {
+                    const targetUserID = followings.list[i];
+                    await Followers.findByIdAndUpdate(
+                        targetUserID,
+                        {
+                            $pull: { list: { _id: req.user._id } },
+                        },
+                        { safe: true, upsert: true });
+                    const targetUser = await User.findOne({ _id: targetUserID });
+                    targetUser.followersCount--;
+                    await targetUser.save();
+                }
+                await Followings.findOneAndRemove({ _id: req.user._id }).then(function () {
+                    console.log("Folowings deleted"); // Success
+                }).catch(function (error) {
+                    console.log(error); // Failure
+                });
+            }
+
+
+
+            const followers = await Followers.findOne({
+                _id: req.user._id,
+            });
+            if (followers) {
+                for (var i in followers.list) {
+                    const targetUserID = followers.list[i];
+                    await Followings.findByIdAndUpdate(
+                        targetUserID,
+                        {
+                            $pull: { list: { _id: req.user._id } },
+                        },
+                        { safe: true, upsert: true });
+                    const targetUser = await User.findOne({ _id: targetUserID });
+                    targetUser.followingCount--;
+                    await targetUser.save();
+                }
+                await Followers.findOneAndRemove({ _id: req.user._id }).then(function () {
+                    console.log("Followers deleted"); // Success
+                }).catch(function (error) {
+                    console.log(error); // Failure
+                });;
+            }
+
+
+
+
+            await Post.deleteMany({ owner: req.user._id }).then(function () {
+                console.log("Posts deleted"); // Success
+            }).catch(function (error) {
+                console.log(error); // Failure
+            });
+            await ReportedUsers.deleteMany({ userId: req.user._id }).then(function () {
+                console.log("Reports deleted"); // Success
+            }).catch(function (error) {
+                console.log(error); // Failure
+            });;
+            await WatchedMovie.findOneAndRemove({ _id: req.user._id }).then(function () {
+                console.log("WatchedMovie deleted"); // Success
+            }).catch(function (error) {
+                console.log(error); // Failure
+            });;
+            await WatchedTv.findOneAndRemove({ _id: req.user._id }).then(function () {
+                console.log("WatchedTv deleted"); // Success
+            }).catch(function (error) {
+                console.log(error); // Failure
+            });;
+            await WatchlistMovie.findOneAndRemove({ _id: req.user._id }).then(function () {
+                console.log("WatchlistMovie deleted"); // Success
+            }).catch(function (error) {
+                console.log(error); // Failure
+            });;
+            await WatchlistTv.findOneAndRemove({ _id: req.user._id }).then(function () {
+                console.log("WatchlistTv deleted"); // Success
+            }).catch(function (error) {
+                console.log(error); // Failure
+            });
+            await Comment.deleteMany({ owner: req.user._id }).then(function () {
+                console.log("Comments deleted"); // Success
+            }).catch(function (error) {
+                console.log(error); // Failure
+            });
+            await Notification.deleteMany({ sender: req.user._id }).then(function () {
+                console.log("Notifications deleted"); // Success
+            }).catch(function (error) {
+                console.log(error); // Failure
+            });
+            await Notification.deleteMany({ receiver: req.user._id }).then(function () {
+                console.log("Notifications deleted"); // Success
+            }).catch(function (error) {
+                console.log(error); // Failure
+            });
+            return res.status(200).json(true);
         }
 
-        throw createError(404, 'Delete operation could not performed on user id:' + req.user.userID);
+        throw createError(404, 'Delete operation could not performed on user id:' + req.user._id);
     } catch (err) {
         next(err);
     }
@@ -190,66 +289,75 @@ const followUser = async (req, res, next) => {
     try {
         if (req.user._id == req.params.id) return res.status(200).json({ message: 'You can not follow yourself' });
 
-        const exist = await Followings.findOne({
-            _id: req.user._id,
-            list: { $elemMatch: { _id: req.params.id } },
-        })
+        const targetUser = await User.findOne(
+            {
+                _id: req.params.id,
+            }
+        );
 
-        if (!exist) {
-            const currentUserFollowingList = await Followings.findOne(
-                {
-                    _id: req.user._id,
+        if (targetUser) {
+            const exist = await Followings.findOne({
+                _id: req.user._id,
+                list: { $elemMatch: { _id: req.params.id } },
+            })
+            if (!exist) {
+
+                const currentUserFollowingList = await Followings.findOne(
+                    {
+                        _id: req.user._id,
+                    }
+                );
+                const targetUserFollowerList = await Followers.findOne(
+                    {
+                        _id: req.params.id,
+                    }
+                );
+                if (currentUserFollowingList) {
+                    console.log('Current user following list found.')
+                    currentUserFollowingList.list.push({ _id: req.params.id });
+                    await currentUserFollowingList.save();
+                } else {
+                    console.log('Current user following list created.')
+                    const tempList = new Followings({
+                        _id: req.user._id,
+                    });
+                    tempList.list.push({ _id: req.params.id });
+                    console.log(tempList);
+                    await tempList.save();
                 }
-            );
-            const targetUser = await User.findOne(
-                {
-                    _id: req.params.id,
+                if (targetUserFollowerList) {
+                    console.log('Target user followers list found.')
+                    targetUserFollowerList.list.push({ _id: req.user._id });
+                    await targetUserFollowerList.save();
+                } else {
+                    console.log('Target user followers list created.')
+                    const tempList = new Followers({
+                        _id: req.params.id,
+                    });
+                    tempList.list.push({ _id: req.user._id });
+                    console.log(tempList);
+                    await tempList.save();
                 }
-            );
-            const targetUserFollowerList = await Followers.findOne(
-                {
-                    _id: req.params.id,
+
+                req.user.followingCount++;
+                targetUser.followersCount++;
+                await targetUser.save();
+                await req.user.save();
+                const targetNotificationToken = targetUser.notificationToken;
+                if (targetNotificationToken) {
+                    sendFollowNotification(req.user.userName, targetUser.notificationToken);
                 }
-            );
-            if (currentUserFollowingList) {
-                console.log('Current user following list found.')
-                currentUserFollowingList.list.push({ _id: req.params.id });
-                await currentUserFollowingList.save();
+                await createNotification(targetUser._id, req.user._id, req.user.userName, 'follow');
+
+                console.log('Follow counts changed.');
+                res.status(201).json({ 'message': true });
             } else {
-                console.log('Current user following list created.')
-                const tempList = new Followings({
-                    _id: req.user._id,
-                });
-                tempList.list.push({ _id: req.params.id });
-                console.log(tempList);
-                await tempList.save();
-            }
-            if (targetUserFollowerList) {
-                console.log('Target user followers list found.')
-                targetUserFollowerList.list.push({ _id: req.user._id });
-                await targetUserFollowerList.save();
-            } else {
-                console.log('Target user followers list created.')
-                const tempList = new Followers({
-                    _id: req.params.id,
-                });
-                tempList.list.push({ _id: req.user._id });
-                console.log(tempList);
-                await tempList.save();
+                res.json({ 'message': 'already exist' });
             }
 
-            req.user.followingCount++;
-            targetUser.followersCount++;
-            await targetUser.save();
-            await req.user.save();
-            const targetNotificationToken = targetUser.notificationToken;
-            if (targetNotificationToken) {
-                sendFollowNotification(req.user.userName, targetUser.notificationToken);
-            }
-            console.log('Follow counts changed.');
-            res.status(201).json({ 'message': true });
         } else {
-            res.json({ 'message': 'already exist' });
+            console.log('target user not exist');
+            res.json({ 'message': 'target user not exist' });
         }
 
     } catch (error) {
@@ -597,6 +705,33 @@ const deleteFromList = async (req, res, next) => {
         return res.status(500).json({ 'message': false });
     }
 }
+const getNotifications = async (req, res, next) => {
+    console.log('get Notifications worked');
+    try {
+        var user = req.user;
+        var result;
+        if (user) {
+            console.log(req.params.date);
+            console.log(req.user._id);
+            if (req.params.date == 0) {
+                result = await Notification.find({
+                    receiver: req.user._id,
+                }).sort({ 'createdAt': -1 }).limit(Number(req.params.number));
+            } else {
+                result = await Notification.find({
+                    receiver: req.user._id,
+                }).sort({ 'createdAt': -1 }).where('createdAt').lt(req.params.date).limit(Number(req.params.number));
+            }
+        }
+        console.log(result);
+        if (result) {
+            return res.status(200).json({ result: result });
+        }
+        throw createError(404, 'there is no post found for user id: ' + req.params.userId);
+    } catch (err) {
+        next(err);
+    }
+}
 
 const deleteInWatchlist = async function (req, isMovie, movieModel) {
     if (isMovie == 'true') {
@@ -684,6 +819,19 @@ const checkItemExistanceAndPull = async function (userid, movieCollection, movie
     }
 }
 
+const createNotification = async (receiver, sender, senderUsername, type, postID) => {
+    const notification = new Notification();
+    notification.receiver = receiver;
+    notification.sender = sender;
+    notification.senderUsername = senderUsername;
+    notification.type = type;
+    if (postID) {
+        notification.postID = postID;
+    }
+
+    await notification.save();
+};
+
 module.exports = {
     getAllUsers,
     getUserById,
@@ -702,6 +850,7 @@ module.exports = {
     deleteFromList,
     getMovieList,
     searchUser,
-    isFollowing
+    isFollowing,
+    getNotifications
 
 }
