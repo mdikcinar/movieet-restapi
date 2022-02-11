@@ -16,26 +16,7 @@ const authCheck = async (req, res, next) => {
                 if (isUserRegistered) {
                     console.log('Request owner: ' + isUserRegistered._id);
                     req.user = isUserRegistered;
-                    const users = await User.find();
-                    for (var i = 0; i < users.length; i++) {
-                        console.log(i);
-                        const user = users[i];
-                        const following = await Followings.findOne({ _id: user._id });
-                        if (following) {
-                            if (following.list.includes({ _id: user._id })) {
-                                console.log('var');
-                            } else {
-                                following.list.push({ _id: user._id });
-                                await following.save();
-                            }
-                        } else {
-                            const tempList = new Followings({
-                                _id: user._id,
-                            });
-                            tempList.list.push({ _id: user._id });
-                            await tempList.save();
-                        }
-                    }
+
                 }
                 else {
                     console.log('User is not registered: ' + decodeValue.uid);
