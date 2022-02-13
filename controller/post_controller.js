@@ -355,10 +355,19 @@ const addComment = async (req, res, next) => {
                 comment._id = new ObjectID();
                 comment.owner = req.user._id;
                 const result = await comment.save();
-                const targetUser = await User.findOne({ _id: post.owner });
-                const targetNotificationToken = targetUser.notificationToken;
-                sendCommentNotification(targetNotificationToken, req.user.userName, comment.commentTxt);
-                await createNotification(targetUser._id, req.user._id, req.user.userName, 'comment', post._id);
+                if (comment.owner != post.owner) {
+                    const targetUser = await User.findOne({ _id: post.owner });
+                    const targetNotificationToken = targetUser.notificationToken;
+                    sendCommentNotification(targetNotificationToken, req.user.userName, comment.commentTxt);
+                    await createNotification(targetUser._id, req.user._id, req.user.userName, 'comment', post._id);
+                }
+                const repliedTo = comment.repliedTo;
+                if (repliedTo) {
+                    const repliedToUser = await User.findOne({ _id: repliedTo });
+                    const repliedToUserNotificationToken = repliedToUser.notificationToken;
+                    sendCommentNotification(repliedToUserNotificationToken, req.user.userName, comment.commentTxt);
+                    await createNotification(repliedToUser._id, req.user._id, req.user.userName, 'comment', post._id);
+                }
                 if (result) {
                     return res.status(200).json(comment._id);
                 }
