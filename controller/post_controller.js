@@ -504,6 +504,24 @@ const getAllPostsWithLimit = async (req, res, next) => {
     }
 
 }
+
+const getPostWithID = async (req, res, next) => {
+    try {
+        const postID = req.params.postID;
+        if (postID) {
+            var result;
+            result = await Post.find({ _id: req.params.postID });
+            if (result) {
+                result = await fillIsUserLiked(req, [result]);
+                return res.status(200).json({ result: result[0] });
+            }
+            throw createError(404, 'there is no post found');
+        }
+    } catch (err) {
+        next(err);
+    }
+
+}
 const getNewAllPostsWithLimit = async (req, res, next) => {
     try {
         console.log('get new all posts with limit date: ' + req.params.date);
@@ -613,5 +631,6 @@ module.exports = {
     likePost,
     addComment,
     deleteComment,
-    getComments
+    getComments,
+    getPostWithID
 }

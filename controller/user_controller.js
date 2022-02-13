@@ -723,7 +723,6 @@ const getNotifications = async (req, res, next) => {
                 }).sort({ 'createdAt': -1 }).where('createdAt').lt(req.params.date).limit(Number(req.params.number));
             }
         }
-        console.log(result);
         if (result) {
             return res.status(200).json({ result: result });
         }

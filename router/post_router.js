@@ -11,6 +11,7 @@ router.get('/show-more-followed/:topdate/:bottomdate/:number', authMiddleware, p
 
 /// login olmuş kullanıcının post atma işlemi
 router.post('/', authMiddleware, postController.sendPost);
+router.get('/:postID', authMiddleware, postController.getPostWithID);
 
 router.post('/report/:postId/:cause', getPostMiddleware, postController.reportPost);
 
